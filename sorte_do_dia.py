@@ -1,8 +1,12 @@
 import streamlit as st
 import random
-from datetime import datetime, date
 import requests
+from datetime import datetime, date
 
+# 🎨 Lista de nomes de cores possíveis
+cores_disponiveis = ["Azul Cósmico", "Verde Esperança", "Vermelho Paixão", "Roxo Místico"]
+
+# 🔁 Converter nome de cor em hexadecimal
 def cor_para_hex(cor_nome):
     mapa_cores = {
         "Azul Cósmico": "#5DADE2",
@@ -10,9 +14,9 @@ def cor_para_hex(cor_nome):
         "Vermelho Paixão": "#EC7063",
         "Roxo Místico": "#AF7AC5"
     }
-    return mapa_cores.get(cor_nome, "#FFFFFF")  # padrão: branco
+    return mapa_cores.get(cor_nome, "#FFFFFF")  # branco por padrão
 
-# Função para descobrir o signo com base na data
+# 🔮 Descobrir signo com base na data
 def descobrir_signo(data_nascimento):
     dia = data_nascimento.day
     mes = data_nascimento.month
@@ -35,19 +39,32 @@ def descobrir_signo(data_nascimento):
             return signo.lower()
     return "desconhecido"
 
-# Função da API real
-def buscar_horoscopo(signo):
-    url = f"https://aztro.sameerkumar.website/?sign={signo}&day=today"
+# 🌐 API Aztro via RapidAPI
+def buscar_horoscopo_rapidapi(signo):
+    url = f"https://aztro.p.rapidapi.com/?sign={signo}&day=today"
+    headers = {
+        "X-RapidAPI-Key": "9f4022a5b4msh9d032fc15f14369p17ccb7jsnf5de31614759",  # 🔁 Sua chave
+        "X-RapidAPI-Host": "aztro.p.rapidapi.com"
+    }
+
     try:
-        response = requests.post(url, timeout=3)
+        response = requests.post(url, headers=headers, timeout=5)
         if response.status_code == 200:
-            return response.json()
+            data = response.json()
+            return {
+                "description": data.get("description", "Hoje os astros estão ocultos."),
+                "mood": data.get("mood", "neutro"),
+                "lucky_number": data.get("lucky_number", "0"),
+                "color": data.get("color", "Roxo Místico"),
+                "tema": "geral"
+            }
         else:
             return None
-    except:
+    except Exception as e:
+        print("Erro na API:", e)
         return None
 
-# Fallback: horóscopo fake
+# 🔁 Fallback: horóscopo fake
 def buscar_horoscopo_fake(signo):
     humores = ["happy", "sad", "angry", "excited", "bored", "content", "neutral"]
     frases_base = {
@@ -77,11 +94,11 @@ def buscar_horoscopo_fake(signo):
         "description": frase_escolhida,
         "mood": humor,
         "lucky_number": str(random.randint(1, 99)),
-        "color": random.choice(["Azul Cósmico", "Verde Esperança", "Vermelho Paixão", "Roxo Místico"]),
+        "color": random.choice(cores_disponiveis),
         "tema": tema
     }
 
-# Mensagens por humor
+# 💬 Mensagem por humor
 def mensagem_por_humor(humor, nome):
     humor = humor.lower()
     respostas = {
@@ -95,7 +112,7 @@ def mensagem_por_humor(humor, nome):
     }
     return respostas.get(humor, f"🔮 {nome}, hoje o universo tá misterioso... e você também.")
 
-# Interface
+# 🧙 Interface principal
 st.title("🔮 Sua sorte do dia - Astrologia Mística")
 
 # Inputs
@@ -103,25 +120,24 @@ data_padrao = date(1900, 1, 1)
 nome = st.text_input("Qual o seu nome?")
 data_nasc = st.date_input("Sua data de nascimento", value=data_padrao, min_value=data_padrao, max_value=date.today())
 
-# Só mostra o botão após preenchimento
+# Quando dados forem preenchidos
 if nome and data_nasc != data_padrao:
     clicou = st.button("✨ Ver minha sorte do dia")
 
     if clicou:
         signo = descobrir_signo(data_nasc)
-        dados = buscar_horoscopo(signo)
+        dados = buscar_horoscopo_rapidapi(signo)
 
         if dados is None:
             st.warning("⚠️ API oficial do universo indisponível. Consultando os astros manualmente...")
             dados = buscar_horoscopo_fake(signo)
 
         if dados:
-            # Formatações de data
             data_nasc_formatada = data_nasc.strftime('%d/%m/%Y')
             data_hoje_formatada = date.today().strftime('%d/%m/%Y')
-
-            # Altera fundo de acordo com a cor
             cor_fundo = cor_para_hex(dados['color'])
+
+            # Altera fundo
             st.markdown(
                 f"""
                 <style>
@@ -133,10 +149,10 @@ if nome and data_nasc != data_padrao:
                 unsafe_allow_html=True
             )
 
-            # Apresentação
+            # Exibição
             st.subheader(f"Olá, {nome}! Seu signo é **{signo.capitalize()}**")
-            st.markdown(f"📅 Data de nascimento: **{data_nasc_formatada}**")
-            st.markdown(f"📆 Previsão válida para: **{data_hoje_formatada}**")
+            st.markdown(f"📅 Nascimento: **{data_nasc_formatada}**")
+            st.markdown(f"📆 Sorte do dia: **{data_hoje_formatada}**")
             st.markdown(f"### 🔮 Tema do dia: **{dados.get('tema', 'Amor').capitalize()}**")
             st.write(f"**Resumo do dia:** {dados['description']}")
             st.markdown(f"### 🪐 Humor do dia: **{dados['mood']}**")
