@@ -1,6 +1,7 @@
 import streamlit as st
 import random
 from datetime import datetime, date
+import requests
 
 def cor_para_hex(cor_nome):
     mapa_cores = {
@@ -10,7 +11,6 @@ def cor_para_hex(cor_nome):
         "Roxo Místico": "#AF7AC5"
     }
     return mapa_cores.get(cor_nome, "#FFFFFF")  # padrão: branco
-
 
 # Função para descobrir o signo com base na data
 def descobrir_signo(data_nascimento):
@@ -35,7 +35,7 @@ def descobrir_signo(data_nascimento):
             return signo.lower()
     return "desconhecido"
 
-# 💫 REINCLUA AQUI A FUNÇÃO DA API REAL
+# Função da API real
 def buscar_horoscopo(signo):
     url = f"https://aztro.sameerkumar.website/?sign={signo}&day=today"
     try:
@@ -47,7 +47,7 @@ def buscar_horoscopo(signo):
     except:
         return None
 
-# Horóscopo gerado localmente (fake)
+# Fallback: horóscopo fake
 def buscar_horoscopo_fake(signo):
     humores = ["happy", "sad", "angry", "excited", "bored", "content", "neutral"]
     frases_base = {
@@ -98,12 +98,12 @@ def mensagem_por_humor(humor, nome):
 # Interface
 st.title("🔮 Sua sorte do dia - Astrologia Mística")
 
-# Inputs do usuário
+# Inputs
 data_padrao = date(1900, 1, 1)
 nome = st.text_input("Qual o seu nome?")
 data_nasc = st.date_input("Sua data de nascimento", value=data_padrao, min_value=data_padrao, max_value=date.today())
 
-# Só mostra botão quando os campos estão preenchidos
+# Só mostra o botão após preenchimento
 if nome and data_nasc != data_padrao:
     clicou = st.button("✨ Ver minha sorte do dia")
 
@@ -116,6 +116,11 @@ if nome and data_nasc != data_padrao:
             dados = buscar_horoscopo_fake(signo)
 
         if dados:
+            # Formatações de data
+            data_nasc_formatada = data_nasc.strftime('%d/%m/%Y')
+            data_hoje_formatada = date.today().strftime('%d/%m/%Y')
+
+            # Altera fundo de acordo com a cor
             cor_fundo = cor_para_hex(dados['color'])
             st.markdown(
                 f"""
@@ -128,7 +133,10 @@ if nome and data_nasc != data_padrao:
                 unsafe_allow_html=True
             )
 
+            # Apresentação
             st.subheader(f"Olá, {nome}! Seu signo é **{signo.capitalize()}**")
+            st.markdown(f"📅 Data de nascimento: **{data_nasc_formatada}**")
+            st.markdown(f"📆 Previsão válida para: **{data_hoje_formatada}**")
             st.markdown(f"### 🔮 Tema do dia: **{dados.get('tema', 'Amor').capitalize()}**")
             st.write(f"**Resumo do dia:** {dados['description']}")
             st.markdown(f"### 🪐 Humor do dia: **{dados['mood']}**")
