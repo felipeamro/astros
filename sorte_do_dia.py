@@ -1,12 +1,13 @@
 import streamlit as st
 import random
 import requests
+import openai
 from datetime import datetime, date
 
-# 🎨 Lista de nomes de cores possíveis
+# Lista de nomes de cores possíveis
 cores_disponiveis = ["Azul Cósmico", "Verde Esperança", "Vermelho Paixão", "Roxo Místico"]
 
-# 🔁 Converter nome de cor em hexadecimal
+# Converter nome de cor em hexadecimal
 def cor_para_hex(cor_nome):
     mapa_cores = {
         "Azul Cósmico": "#5DADE2",
@@ -14,9 +15,9 @@ def cor_para_hex(cor_nome):
         "Vermelho Paixão": "#EC7063",
         "Roxo Místico": "#AF7AC5"
     }
-    return mapa_cores.get(cor_nome, "#FFFFFF")  # branco por padrão
+    return mapa_cores.get(cor_nome, "#FFFFFF")
 
-# 🔮 Descobrir signo com base na data
+# Descobrir signo com base na data
 def descobrir_signo(data_nascimento):
     dia = data_nascimento.day
     mes = data_nascimento.month
@@ -39,14 +40,13 @@ def descobrir_signo(data_nascimento):
             return signo.lower()
     return "desconhecido"
 
-# 🌐 API Aztro via RapidAPI
+# API Aztro via RapidAPI
 def buscar_horoscopo_rapidapi(signo):
     url = f"https://aztro.p.rapidapi.com/?sign={signo}&day=today"
     headers = {
-        "X-RapidAPI-Key": "9f4022a5b4msh9d032fc15f14369p17ccb7jsnf5de31614759",  # 🔁 Sua chave
+        "X-RapidAPI-Key": "9f4022a5b4msh9d032fc15f14369p17ccb7jsnf5de31614759",
         "X-RapidAPI-Host": "aztro.p.rapidapi.com"
     }
-
     try:
         response = requests.post(url, headers=headers, timeout=5)
         if response.status_code == 200:
@@ -64,7 +64,7 @@ def buscar_horoscopo_rapidapi(signo):
         print("Erro na API:", e)
         return None
 
-# 🔁 Fallback: horóscopo fake
+# Fallback: horóscopo fake
 def buscar_horoscopo_fake(signo):
     humores = ["happy", "sad", "angry", "excited", "bored", "content", "neutral"]
     frases_base = {
@@ -85,11 +85,9 @@ def buscar_horoscopo_fake(signo):
             f"{signo.capitalize()}, talvez seja um bom momento pra *parecer* produtivo. O resto a gente finge."
         ]
     }
-
     tema = random.choice(list(frases_base.keys()))
     frase_escolhida = random.choice(frases_base[tema])
     humor = random.choice(humores)
-
     return {
         "description": frase_escolhida,
         "mood": humor,
@@ -98,7 +96,7 @@ def buscar_horoscopo_fake(signo):
         "tema": tema
     }
 
-# 💬 Mensagem por humor
+# Mensagem personalizada por humor
 def mensagem_por_humor(humor, nome):
     humor = humor.lower()
     respostas = {
@@ -108,19 +106,31 @@ def mensagem_por_humor(humor, nome):
         "excited": f"🤩 {nome}, canaliza essa energia! Só cuidado pra não sair marcando reunião às 22h por empolgação.",
         "bored": f"😐 {nome}, o tédio bateu? Vai que hoje o destino te surpreende... ou não.",
         "content": f"🙂 {nome}, tá de boas? Ótimo. Mas não abaixa a guarda, Mercúrio ainda tá retrógrado.",
-        "neutral": f"😶 {nome}, seu dia tá tipo arroz branco: neutro, mas alimenta.",
+        "neutral": f"😶 {nome}, seu dia tá tipo arroz branco: neutro, mas alimenta."
     }
     return respostas.get(humor, f"🔮 {nome}, hoje o universo tá misterioso... e você também.")
 
-# 🧙 Interface principal
+# Gerador de resposta com ChatGPT
+def gerar_resposta_gpt(mensagens):
+    openai.api_key = "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"
+    try:
+        resposta = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=mensagens,
+            temperature=0.8,
+            max_tokens=300
+        )
+        return resposta.choices[0].message["content"]
+    except Exception as e:
+        return f"⚠️ Erro cósmico ao consultar os astros: {e}"
+
+# Interface principal
 st.title("🔮 Sua sorte do dia - Astrologia Mística")
 
-# Inputs
-data_padrao = date(1900, 1, 1)
 nome = st.text_input("Qual o seu nome?")
+data_padrao = date(1900, 1, 1)
 data_nasc = st.date_input("Sua data de nascimento", value=data_padrao, min_value=data_padrao, max_value=date.today())
 
-# Quando dados forem preenchidos
 if nome and data_nasc != data_padrao:
     clicou = st.button("✨ Ver minha sorte do dia")
 
@@ -133,34 +143,51 @@ if nome and data_nasc != data_padrao:
             dados = buscar_horoscopo_fake(signo)
 
         if dados:
-            data_nasc_formatada = data_nasc.strftime('%d/%m/%Y')
-            data_hoje_formatada = date.today().strftime('%d/%m/%Y')
             cor_fundo = cor_para_hex(dados['color'])
-
-            # Altera fundo
-            st.markdown(
-                f"""
+            st.markdown(f"""
                 <style>
-                    .stApp {{
-                        background-color: {cor_fundo};
-                    }}
+                    .stApp {{ background-color: {cor_fundo}; }}
                 </style>
-                """,
-                unsafe_allow_html=True
-            )
+            """, unsafe_allow_html=True)
 
-            # Exibição
-            st.subheader(f"Olá, {nome}! Seu signo é **{signo.capitalize()}**")
-            st.markdown(f"📅 Nascimento: **{data_nasc_formatada}**")
-            st.markdown(f"📆 Sorte do dia: **{data_hoje_formatada}**")
-            st.markdown(f"### 🔮 Tema do dia: **{dados.get('tema', 'Amor').capitalize()}**")
-            st.write(f"**Resumo do dia:** {dados['description']}")
-            st.markdown(f"### 🪐 Humor do dia: **{dados['mood']}**")
-            st.write(f"**Número da sorte:** {dados['lucky_number']}")
-            st.write(f"**Cor do dia:** {dados['color']}")
+            col1, col2 = st.columns([2, 1])
 
-            st.markdown("---")
-            mensagem = mensagem_por_humor(dados['mood'], nome)
-            st.success(mensagem)
-        else:
-            st.error("Não conseguimos consultar os astros hoje. Tente novamente mais tarde.")
+            with col1:
+                st.subheader(f"Olá, {nome}! Seu signo é **{signo.capitalize()}**")
+                st.markdown(f"📅 Nascimento: **{data_nasc.strftime('%d/%m/%Y')}**")
+                st.markdown(f"📆 Sorte do dia: **{date.today().strftime('%d/%m/%Y')}**")
+                st.markdown(f"### 🔮 Tema do dia: **{dados.get('tema', 'Amor').capitalize()}**")
+                st.write(f"**Resumo do dia:** {dados['description']}")
+                st.markdown(f"### 🪐 Humor do dia: **{dados['mood']}**")
+                st.write(f"**Número da sorte:** {dados['lucky_number']}")
+                st.write(f"**Cor do dia:** {dados['color']}")
+                st.markdown("---")
+                mensagem = mensagem_por_humor(dados['mood'], nome)
+                st.success(mensagem)
+
+            with col2:
+                st.markdown("### 👁️‍🗨️ Fale com o Guru dos Astros")
+                st.caption("Pergunte sobre signos, vibes, energia cósmica ou o crush...")
+
+                if "mensagens" not in st.session_state:
+                    st.session_state.mensagens = [
+                        {"role": "system", "content": f"Você é o Guru dos Astros, um astrólogo místico e espirituoso. Fale com sabedoria, emojis e bom humor. Contexto: '{dados['description']}'. Humor do dia: '{dados['mood']}'"},
+                    ]
+
+                for m in st.session_state.mensagens[1:]:
+                    with st.chat_message(m["role"]):
+                        st.markdown(m["content"])
+
+                pergunta = st.chat_input("Pergunte ao Guru...")
+
+                if pergunta:
+                    st.session_state.mensagens.append({"role": "user", "content": pergunta})
+
+                    with st.chat_message("user"):
+                        st.markdown(pergunta)
+
+                    with st.chat_message("assistant"):
+                        resposta = gerar_resposta_gpt(st.session_state.mensagens)
+                        st.markdown(resposta)
+
+                    st.session_state.mensagens.append({"role": "assistant", "content": resposta})
