@@ -2,6 +2,7 @@ import streamlit as st
 import random
 import requests
 import openai
+from openai import OpenAI
 from datetime import datetime, date
 
 # Lista de nomes de cores possíveis
@@ -44,7 +45,7 @@ def descobrir_signo(data_nascimento):
 def buscar_horoscopo_rapidapi(signo):
     url = f"https://aztro.p.rapidapi.com/?sign={signo}&day=today"
     headers = {
-        "X-RapidAPI-Key": "9f4022a5b4msh9d032fc15f14369p17ccb7jsnf5de31614759",
+        "X-RapidAPI-Key": "9f4022a5b4msh9d032fc15f14369p17ccb7jsnf5de31614759",  # 🔐 CHAVE DA RAPIDAPI
         "X-RapidAPI-Host": "aztro.p.rapidapi.com"
     }
     try:
@@ -61,8 +62,8 @@ def buscar_horoscopo_rapidapi(signo):
         else:
             return None
     except Exception as e:
-        print("Erro na API:", e)
-        return None
+        st.error(f"⚠️ Erro na consulta à API: {e}")
+        return "O Guru ficou em silêncio cósmico. Tente novamente."
 
 # Fallback: horóscopo fake
 def buscar_horoscopo_fake(signo):
@@ -110,19 +111,20 @@ def mensagem_por_humor(humor, nome):
     }
     return respostas.get(humor, f"🔮 {nome}, hoje o universo tá misterioso... e você também.")
 
-# Gerador de resposta com ChatGPT
+# Gerador de resposta com ChatGPT (API atualizada para versão >=1.0)
 def gerar_resposta_gpt(mensagens):
-    openai.api_key = "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"
+    client = OpenAI(api_key="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")  # 🔐 CHAVE OPENAI
     try:
-        resposta = openai.ChatCompletion.create(
+        resposta = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=mensagens,
             temperature=0.8,
             max_tokens=300
         )
-        return resposta.choices[0].message["content"]
+        return resposta.choices[0].message.content
     except Exception as e:
-        return f"⚠️ Erro cósmico ao consultar os astros: {e}"
+        st.error(f"⚠️ Erro na consulta à API: {e}")
+        return "O Guru ficou em silêncio cósmico. Tente novamente."
 
 # Interface principal
 st.title("🔮 Sua sorte do dia - Astrologia Mística")
@@ -130,6 +132,12 @@ st.title("🔮 Sua sorte do dia - Astrologia Mística")
 nome = st.text_input("Qual o seu nome?")
 data_padrao = date(1900, 1, 1)
 data_nasc = st.date_input("Sua data de nascimento", value=data_padrao, min_value=data_padrao, max_value=date.today())
+
+# Inicializa o chat
+if "mensagens" not in st.session_state:
+    st.session_state.mensagens = [
+        {"role": "system", "content": "Você é o Guru dos Astros, um astrólogo místico e espirituoso. Fale com sabedoria, emojis e bom humor."}
+    ]
 
 if nome and data_nasc != data_padrao:
     clicou = st.button("✨ Ver minha sorte do dia")
@@ -165,29 +173,22 @@ if nome and data_nasc != data_padrao:
                 mensagem = mensagem_por_humor(dados['mood'], nome)
                 st.success(mensagem)
 
-            with col2:
-                st.markdown("### 👁️‍🗨️ Fale com o Guru dos Astros")
-                st.caption("Pergunte sobre signos, vibes, energia cósmica ou o crush...")
+# Interface do chat sempre disponível após preenchimento de nome e data
+if nome and data_nasc != data_padrao:
+    st.markdown("### 👁️‍🗨️ Fale com o Guru dos Astros")
+    st.caption("Pergunte sobre signos, vibes, energia cósmica ou o crush...")
 
-                if "mensagens" not in st.session_state:
-                    st.session_state.mensagens = [
-                        {"role": "system", "content": f"Você é o Guru dos Astros, um astrólogo místico e espirituoso. Fale com sabedoria, emojis e bom humor. Contexto: '{dados['description']}'. Humor do dia: '{dados['mood']}'"},
-                    ]
+    for m in st.session_state.mensagens[1:]:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
 
-                for m in st.session_state.mensagens[1:]:
-                    with st.chat_message(m["role"]):
-                        st.markdown(m["content"])
+    pergunta = st.chat_input("Pergunte ao Guru...")
 
-                pergunta = st.chat_input("Pergunte ao Guru...")
-
-                if pergunta:
-                    st.session_state.mensagens.append({"role": "user", "content": pergunta})
-
-                    with st.chat_message("user"):
-                        st.markdown(pergunta)
-
-                    with st.chat_message("assistant"):
-                        resposta = gerar_resposta_gpt(st.session_state.mensagens)
-                        st.markdown(resposta)
-
-                    st.session_state.mensagens.append({"role": "assistant", "content": resposta})
+    if pergunta:
+        st.session_state.mensagens.append({"role": "user", "content": pergunta})
+        with st.chat_message("user"):
+            st.markdown(pergunta)
+        with st.chat_message("assistant"):
+            resposta = gerar_resposta_gpt(st.session_state.mensagens)
+            st.markdown(resposta)
+        st.session_state.mensagens.append({"role": "assistant", "content": resposta})
